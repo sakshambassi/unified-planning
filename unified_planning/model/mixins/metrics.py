@@ -98,6 +98,11 @@ class MetricsMixin:
                     metric, up.model.metrics.MinimizeExpressionOnFinalState
                 )
                 kind.set_quality_metrics("FINAL_VALUE")
+                t = metric.expression.type
+                if t.is_int_type():
+                    kind.set_numbers("DISCRETE_NUMBERS")
+                elif t.is_real_type():
+                    kind.set_numbers("CONTINUOUS_NUMBERS")
                 (
                     is_linear,
                     fnode_to_only_increase,  # positive fluents in minimize can only be increased
@@ -117,6 +122,11 @@ class MetricsMixin:
                     metric, up.model.metrics.MaximizeExpressionOnFinalState
                 )
                 kind.set_quality_metrics("FINAL_VALUE")
+                t = metric.expression.type
+                if t.is_int_type():
+                    kind.set_numbers("DISCRETE_NUMBERS")
+                elif t.is_real_type():
+                    kind.set_numbers("CONTINUOUS_NUMBERS")
                 (
                     is_linear,
                     fnode_to_only_decrease,  # positive fluents in maximize can only be decreased
@@ -134,19 +144,27 @@ class MetricsMixin:
             elif metric.is_minimize_action_costs():
                 assert isinstance(metric, up.model.metrics.MinimizeActionCosts)
                 kind.set_quality_metrics("ACTIONS_COST")
+                if metric.default is not None:
+                    t = metric.default.type
+                    if t.is_int_type():
+                        kind.set_numbers("DISCRETE_NUMBERS")
+                    elif t.is_real_type():
+                        kind.set_numbers("CONTINUOUS_NUMBERS")
+                    for f in fve.get(metric.default):
+                        if f.fluent() in static_fluents:
+                            kind.set_actions_cost_kind("STATIC_FLUENTS_IN_ACTIONS_COST")
+                        else:
+                            kind.set_actions_cost_kind("FLUENTS_IN_ACTIONS_COST")
                 for cost in metric.costs.values():
+                    t = cost.type
+                    if t.is_int_type():
+                        kind.set_numbers("DISCRETE_NUMBERS")
+                    elif t.is_real_type():
+                        kind.set_numbers("CONTINUOUS_NUMBERS")
                     if cost is None:
                         raise UPProblemDefinitionError(
                             "The cost of an Action can't be None."
                         )
-                    if metric.default is not None:
-                        for f in fve.get(metric.default):
-                            if f.fluent() in static_fluents:
-                                kind.set_actions_cost_kind(
-                                    "STATIC_FLUENTS_IN_ACTIONS_COST"
-                                )
-                            else:
-                                kind.set_actions_cost_kind("FLUENTS_IN_ACTIONS_COST")
                     for f in fve.get(cost):
                         if f.fluent() in static_fluents:
                             kind.set_actions_cost_kind("STATIC_FLUENTS_IN_ACTIONS_COST")
@@ -157,9 +175,21 @@ class MetricsMixin:
             elif metric.is_minimize_sequential_plan_length():
                 kind.set_quality_metrics("PLAN_LENGTH")
             elif metric.is_oversubscription():
+                assert isinstance(metric, up.model.metrics.Oversubscription)
                 kind.set_quality_metrics("OVERSUBSCRIPTION")
+                for c in metric.goals.values():
+                    if isinstance(c, int):
+                        kind.set_numbers("DISCRETE_NUMBERS")
+                    else:
+                        kind.set_numbers("CONTINUOUS_NUMBERS")
             elif metric.is_temporal_oversubscription():
+                assert isinstance(metric, up.model.metrics.TemporalOversubscription)
                 kind.set_quality_metrics("TEMPORAL_OVERSUBSCRIPTION")
+                for c in metric.goals.values():
+                    if isinstance(c, int):
+                        kind.set_numbers("DISCRETE_NUMBERS")
+                    else:
+                        kind.set_numbers("CONTINUOUS_NUMBERS")
             else:
                 assert False, "Unknown quality metric"
         return fluents_to_only_increase, fluents_to_only_decrease
